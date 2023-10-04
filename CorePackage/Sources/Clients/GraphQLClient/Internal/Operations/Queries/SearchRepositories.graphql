@@ -1,0 +1,32 @@
+query SearchRepositories($query: String = "", $count: Int = 20, $after: String) {
+    search(query: $query, type: REPOSITORY, first: $count, after: $after) {
+        edges {
+            cursor
+            node {
+                ... on Repository {
+                    id
+                    name
+                    description
+                    stargazerCount
+                    primaryLanguage {
+                      id
+                      name
+                      color
+                    }
+                    owner {
+                        ... on Organization {
+                            id
+                            avatarUrl
+                            name
+                        }
+                        ... on User {
+                            id
+                            name
+                            avatarUrl
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
