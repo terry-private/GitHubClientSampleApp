@@ -10,7 +10,7 @@ extension ApolloClientProtocol {
         cachePolicy: CachePolicy = .default,
         contextIdentifier: UUID? = nil,
         context: RequestContext? = nil,
-        queue: DispatchQueue = .main
+        queue: DispatchQueue = .global(qos: .background)
     ) async throws -> Query.Data.Entity where Query.Data: EntityConvertible {
         let uuid: UUID = .init()
         return try await withTaskCancellationHandler {
