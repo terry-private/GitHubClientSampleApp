@@ -37,6 +37,7 @@ extension ApolloClientProtocol {
             }
         } onCancel: {
             cancellable[uuid]?.cancel()
+            cancellable[uuid] = nil
         }
     }
 }
