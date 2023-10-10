@@ -2,7 +2,7 @@ import Foundation
 import Apollo
 import ApolloAPI
 
-private var cancellable: [UUID: Cancellable] = [:]
+private var cancellables: [UUID: Cancellable] = [:]
 
 extension ApolloClientProtocol {
     func fetch<Query: GraphQLQuery>(
@@ -15,9 +15,9 @@ extension ApolloClientProtocol {
         let uuid: UUID = .init()
         return try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { continuation in
-                cancellable[uuid] = fetch(query: query, cachePolicy: cachePolicy, contextIdentifier: contextIdentifier, context: context, queue: queue) {  result in
+                cancellables[uuid] = fetch(query: query, cachePolicy: cachePolicy, contextIdentifier: contextIdentifier, context: context, queue: queue) {  result in
                     defer {
-                        cancellable[uuid] = nil
+                        cancellables[uuid] = nil
                     }
                     switch result {
                     case .success(let graphQLResult):
@@ -36,8 +36,8 @@ extension ApolloClientProtocol {
                 }
             }
         } onCancel: {
-            cancellable[uuid]?.cancel()
-            cancellable[uuid] = nil
+            cancellables[uuid]?.cancel()
+            cancellables[uuid] = nil
         }
     }
 }
