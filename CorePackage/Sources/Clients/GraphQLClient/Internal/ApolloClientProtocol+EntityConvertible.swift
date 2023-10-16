@@ -2,7 +2,28 @@ import Foundation
 import Apollo
 import ApolloAPI
 
-private var cancellables: [UUID: Cancellable] = [:]
+final class Canceller: @unchecked Sendable {
+    private let lock = NSLock()
+    private lazy var serialQueue = DispatchQueue(label: "\(String(describing: Canceller.self))-\(String(describing: ObjectIdentifier(self)))")
+    private var isCancelled = false
+    private weak var cancellable: (any Cancellable)?
+
+    func cancel() {
+        lock.lock()
+        self.isCancelled = true
+        self.cancellable?.cancel()
+        lock.unlock()
+    }
+
+    func setCancellable(_ cancellable: any Cancellable) {
+        serialQueue.async { [weak self, weak cancellable] in
+            if self?.isCancelled == true {
+                cancellable?.cancel()
+            }
+            self?.cancellable = cancellable
+        }
+    }
+}
 
 extension ApolloClientProtocol {
     func fetch<Query: GraphQLQuery>(
@@ -12,13 +33,10 @@ extension ApolloClientProtocol {
         context: RequestContext? = nil,
         queue: DispatchQueue = .global(qos: .background)
     ) async throws -> Query.Data.Entity where Query.Data: EntityConvertible {
-        let uuid: UUID = .init()
+        let canceller = Canceller()
         return try await withTaskCancellationHandler {
-            try await withCheckedThrowingContinuation { continuation in
-                cancellables[uuid] = fetch(query: query, cachePolicy: cachePolicy, contextIdentifier: contextIdentifier, context: context, queue: queue) {  result in
-                    defer {
-                        cancellables[uuid] = nil
-                    }
+            return try await withCheckedThrowingContinuation { continuation in
+                let cancellable = fetch(query: query, cachePolicy: cachePolicy, contextIdentifier: contextIdentifier, context: context, queue: queue) {  result in
                     switch result {
                     case .success(let graphQLResult):
                         guard let data = graphQLResult.data else {
@@ -34,10 +52,10 @@ extension ApolloClientProtocol {
                         continuation.resume(throwing: error)
                     }
                 }
+                canceller.setCancellable(cancellable)
             }
         } onCancel: {
-            cancellables[uuid]?.cancel()
-            cancellables[uuid] = nil
+            canceller.cancel()
         }
     }
 }
