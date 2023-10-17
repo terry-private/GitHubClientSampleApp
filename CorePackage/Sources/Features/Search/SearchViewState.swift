@@ -53,6 +53,7 @@ class SearchViewState: ObservableObject {
                 searchTask = nil
             }
         }
+//        cancel() // 同期的にキャンセルするテスト用
     }
     
     func cancel() {
